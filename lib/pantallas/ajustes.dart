@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:uniconnect/widgets/bottom_nav_bar.dart';
 
 class AjustesPage extends StatefulWidget {
   @override
@@ -24,7 +25,6 @@ class _AjustesPageState extends State<AjustesPage> {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
-      // Aquí iría la lógica para manejar la foto seleccionada
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Foto de perfil cambiada')),
       );
@@ -32,21 +32,18 @@ class _AjustesPageState extends State<AjustesPage> {
   }
 
   void cambiarContrasena() {
-    // Lógica para cambiar contraseña, incluyendo validación de la actual
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Función para cambiar contraseña')),
     );
   }
 
   void cerrarSesion() {
-    // Lógica para cerrar sesión
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Sesión cerrada')),
     );
   }
 
   void borrarCuenta() {
-    // Lógica para eliminar la cuenta del usuario
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Cuenta eliminada')),
     );
@@ -210,24 +207,30 @@ class _AjustesPageState extends State<AjustesPage> {
             ),
             const SizedBox(height: 20),
             ElevatedButton(
-        onPressed: cerrarSesion,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.red, // Cambia 'primary' por 'backgroundColor'
-          minimumSize: const Size(double.infinity, 50),
-        ),
-        child: const Text('Cerrar sesión'),
-          ),
-          const SizedBox(height: 10),
-          ElevatedButton(
-            onPressed: borrarCuenta,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.redAccent, // Cambia 'primary' por 'backgroundColor'
-              minimumSize: const Size(double.infinity, 50),
+              onPressed: cerrarSesion,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                minimumSize: const Size(double.infinity, 50),
+              ),
+              child: const Text('Cerrar sesión'),
             ),
-            child: const Text('Borrar cuenta'),
-          ),
+            const SizedBox(height: 10),
+            ElevatedButton(
+              onPressed: borrarCuenta,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent,
+                minimumSize: const Size(double.infinity, 50),
+              ),
+              child: const Text('Borrar cuenta'),
+            ),
           ],
         ),
+      ),
+      bottomNavigationBar: BottomNavBar(
+        selectedIndex: 4, // Índice para Ajustes
+        onItemTapped: (index) {
+          // Lógica de navegación al cambiar entre elementos del menú
+        },
       ),
     );
   }
