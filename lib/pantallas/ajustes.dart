@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:uniconnect/widgets/bottom_nav_bar.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Para manejar la autenticación de Firebase
+import 'package:uniconnect/pantallas/inicio_sesion.dart'; // Asegúrate de que la ruta sea correcta
+import 'package:uniconnect/widgets/bottom_nav_bar.dart'; // Asegúrate de usar la ruta correcta
 
 class AjustesPage extends StatefulWidget {
   @override
@@ -37,15 +39,55 @@ class _AjustesPageState extends State<AjustesPage> {
     );
   }
 
-  void cerrarSesion() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Sesión cerrada')),
-    );
+  // Función para cerrar sesión y redirigir a la pantalla de inicio de sesión
+  void cerrarSesion() async {
+    try {
+      await FirebaseAuth.instance.signOut(); // Cierra la sesión actual
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const InicioSesionPage()), // Redirige al inicio de sesión
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al cerrar sesión: $e')),
+      );
+    }
   }
 
-  void borrarCuenta() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Cuenta eliminada')),
+  // Función para mostrar cuadro de confirmación antes de borrar cuenta
+  void confirmarBorrarCuenta() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Confirmar eliminación de cuenta"),
+          content: const Text("¿Estás seguro de que deseas borrar tu cuenta? Esta acción no se puede deshacer."),
+          actions: <Widget>[
+            TextButton(
+              child: const Text("No"),
+              onPressed: () {
+                Navigator.of(context).pop(); // Cierra el cuadro de diálogo
+              },
+            ),
+            TextButton(
+              child: const Text("Sí"),
+              onPressed: () async {
+                try {
+                  await FirebaseAuth.instance.currentUser?.delete(); // Elimina la cuenta del usuario
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (context) => const InicioSesionPage()), // Redirige al inicio de sesión
+                  );
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error al borrar cuenta: $e')),
+                  );
+                }
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -207,7 +249,7 @@ class _AjustesPageState extends State<AjustesPage> {
             ),
             const SizedBox(height: 20),
             ElevatedButton(
-              onPressed: cerrarSesion,
+              onPressed: cerrarSesion, // Llamada a la función para cerrar sesión
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red,
                 minimumSize: const Size(double.infinity, 50),
@@ -216,7 +258,7 @@ class _AjustesPageState extends State<AjustesPage> {
             ),
             const SizedBox(height: 10),
             ElevatedButton(
-              onPressed: borrarCuenta,
+              onPressed: confirmarBorrarCuenta, // Llamada a la función para borrar cuenta con confirmación
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.redAccent,
                 minimumSize: const Size(double.infinity, 50),
