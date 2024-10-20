@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:uniconnect/pantallas/agregar_chat.dart';
+import 'package:uniconnect/widgets/bottom_nav_bar.dart'; // Asegúrate de usar la ruta correcta
 
-// ignore: use_key_in_widget_constructors
 class PantallaPrincipal extends StatefulWidget {
   @override
   _PantallaPrincipalState createState() => _PantallaPrincipalState();
@@ -41,39 +41,13 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
         child: _widgetOptions
             .elementAt(_selectedIndex), // Muestra la opción seleccionada
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.chat_bubble),
-            label: 'Chats',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.group),
-            label: 'Grupos',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.assignment),
-            label: 'Actividades',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.announcement),
-            label: 'Novedades',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings),
-            label: 'Ajustes',
-          ),
-        ],
-        currentIndex: _selectedIndex,
-        selectedItemColor: const Color.fromARGB(
-            255, 42, 143, 62), // Color verde para la selección
-        unselectedItemColor:
-            Colors.grey, // Color gris para los no seleccionados
-        backgroundColor: Colors.white, // Fondo blanco del menú inferior
-        onTap: _onItemTapped,
-        elevation: 5, // Sombra para el menú
-        type: BottomNavigationBarType
-            .fixed, // Para mantener el texto debajo de los íconos
+      bottomNavigationBar: BottomNavBar(
+        selectedIndex: _selectedIndex,
+        onItemTapped: (index) {
+          setState(() {
+            _selectedIndex = index;
+          });
+        },
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _agregarChat, // Llamada a la función modificada
