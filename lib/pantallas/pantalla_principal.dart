@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:uniconnect/pantallas/agregar_chat.dart';
 
+// ignore: use_key_in_widget_constructors
 class PantallaPrincipal extends StatefulWidget {
   @override
   _PantallaPrincipalState createState() => _PantallaPrincipalState();
@@ -33,10 +34,12 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
       appBar: AppBar(
         title: _cuadroBusqueda(),
         centerTitle: true,
-        backgroundColor: const Color.fromARGB(255, 42, 143, 62), // Color verde del AppBar
+        backgroundColor:
+            const Color.fromARGB(255, 42, 143, 62), // Color verde del AppBar
       ),
       body: Center(
-        child: _widgetOptions.elementAt(_selectedIndex), // Muestra la opción seleccionada
+        child: _widgetOptions
+            .elementAt(_selectedIndex), // Muestra la opción seleccionada
       ),
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
@@ -62,19 +65,24 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
           ),
         ],
         currentIndex: _selectedIndex,
-        selectedItemColor: const Color.fromARGB(255, 42, 143, 62), // Color verde para la selección
-        unselectedItemColor: Colors.grey, // Color gris para los no seleccionados
+        selectedItemColor: const Color.fromARGB(
+            255, 42, 143, 62), // Color verde para la selección
+        unselectedItemColor:
+            Colors.grey, // Color gris para los no seleccionados
         backgroundColor: Colors.white, // Fondo blanco del menú inferior
         onTap: _onItemTapped,
         elevation: 5, // Sombra para el menú
-        type: BottomNavigationBarType.fixed, // Para mantener el texto debajo de los íconos
+        type: BottomNavigationBarType
+            .fixed, // Para mantener el texto debajo de los íconos
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _agregarChat,
+        onPressed: _agregarChat, // Llamada a la función modificada
+        // ignore: sort_child_properties_last
         child: const Icon(Icons.chat),
         backgroundColor: Colors.blue, // Color azul para el FloatingActionButton
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat, // Asegura que se mantenga en la esquina inferior derecha
+      floatingActionButtonLocation: FloatingActionButtonLocation
+          .endFloat, // Asegura que se mantenga en la esquina inferior derecha
     );
   }
 
@@ -102,6 +110,10 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
 
   // Función para agregar un nuevo chat
   void _agregarChat() {
-    // Lógica para agregar un nuevo chat
+    // Navegar a la pantalla de agregar chat
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const AgregarChatPage()),
+    );
   }
 }
