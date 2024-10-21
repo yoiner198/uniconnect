@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'chat.dart'; // Asegúrate de crear este archivo con la clase ChatScreen
 
 class AgregarChatPage extends StatefulWidget {
   const AgregarChatPage({super.key});
@@ -82,6 +83,16 @@ class _AgregarChatPageState extends State<AgregarChatPage> {
     }
   }
 
+  // Función para abrir el chat con un contacto
+  void abrirChat(String contactUsername) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ChatScreen(contactUsername: contactUsername),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -146,7 +157,7 @@ class _AgregarChatPageState extends State<AgregarChatPage> {
                         Text(contacto['nombres'] + ' ' + contacto['apellidos']),
                     subtitle: Text(contacto['username']),
                     onTap: () {
-                      // Aquí puedes manejar la lógica para abrir un nuevo chat
+                      abrirChat(contacto['username']);
                     },
                   );
                 },
