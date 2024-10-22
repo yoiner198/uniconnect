@@ -16,30 +16,79 @@ class _AgregarChatPageState extends State<AgregarChatPage> {
   TextEditingController _buscarController = TextEditingController();
   List<Map<String, dynamic>> contactos = [];
   List<Map<String, dynamic>> resultadosBusqueda = [];
+  String? _currentUserUsername;
+  String? _currentUserUid;
 
   @override
   void initState() {
     super.initState();
-    obtenerContactos();
+    _getCurrentUserData();
+  }
+
+  Future<void> _getCurrentUserData() async {
+    User? user = _auth.currentUser;
+    if (user != null) {
+      DocumentSnapshot userDoc =
+          await _firestore.collection('usuarios').doc(user.uid).get();
+      setState(() {
+        _currentUserUsername = userDoc['username'];
+        _currentUserUid = user.uid; // Guardar el UID del usuario actual
+        obtenerContactos();
+      });
+    }
   }
 
   // Obtener la lista de contactos del usuario actual
   Future<void> obtenerContactos() async {
+    if (_currentUserUsername == null) return;
     try {
-      String uid = _auth.currentUser!.uid;
       QuerySnapshot snapshot = await _firestore
           .collection('usuarios')
-          .doc(uid)
+          .doc(_currentUserUid)
           .collection('contactos')
           .get();
 
+      List<Map<String, dynamic>> contactosList = [];
+      for (var doc in snapshot.docs) {
+        var contacto = doc.data() as Map<String, dynamic>;
+        bool chatIniciado = await verificarChatIniciado(
+            _currentUserUsername!, contacto['username']);
+        contacto['estado'] = chatIniciado ? 'inicializado' : 'no inicializado';
+        contactosList.add(contacto);
+
+        // Actualizar el estado en Firestore
+        await _firestore
+            .collection('usuarios')
+            .doc(_currentUserUid)
+            .collection('contactos')
+            .doc(contacto['username'])
+            .update({'estado': contacto['estado']});
+      }
+
       setState(() {
-        contactos = snapshot.docs
-            .map((doc) => doc.data() as Map<String, dynamic>)
-            .toList();
+        contactos = contactosList;
       });
     } catch (e) {
       print('Error al obtener contactos: $e');
+    }
+  }
+
+  // Verificar si el chat ha sido iniciado
+  Future<bool> verificarChatIniciado(
+      String currentUser, String contactUser) async {
+    try {
+      String chatId1 = "${currentUser}_$contactUser";
+      String chatId2 = "${contactUser}_$currentUser";
+
+      DocumentSnapshot doc1 =
+          await _firestore.collection('chats').doc(chatId1).get();
+      DocumentSnapshot doc2 =
+          await _firestore.collection('chats').doc(chatId2).get();
+
+      return doc1.exists || doc2.exists;
+    } catch (e) {
+      print('Error al verificar chat: $e');
+      return false;
     }
   }
 
@@ -64,10 +113,10 @@ class _AgregarChatPageState extends State<AgregarChatPage> {
   // Agregar un nuevo contacto
   Future<void> agregarContacto(Map<String, dynamic> usuario) async {
     try {
-      String uid = _auth.currentUser!.uid;
+      usuario['estado'] = 'no inicializado';
       await _firestore
           .collection('usuarios')
-          .doc(uid)
+          .doc(_currentUserUid) // Usar el UID actual
           .collection('contactos')
           .doc(usuario['username'])
           .set(usuario);
@@ -155,7 +204,13 @@ class _AgregarChatPageState extends State<AgregarChatPage> {
                     ),
                     title:
                         Text(contacto['nombres'] + ' ' + contacto['apellidos']),
-                    subtitle: Text(contacto['username']),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(contacto['username']),
+                        Text(contacto['estado']),
+                      ],
+                    ),
                     onTap: () {
                       abrirChat(contacto['username']);
                     },

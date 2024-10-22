@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:uniconnect/pantallas/agregar_chat.dart';
-import 'package:uniconnect/widgets/bottom_nav_bar.dart'; // Asegúrate de usar la ruta correcta
+import 'package:uniconnect/widgets/bottom_nav_bar.dart';
+import 'chat.dart';
 
 class PantallaPrincipal extends StatefulWidget {
   @override
@@ -10,12 +12,64 @@ class PantallaPrincipal extends StatefulWidget {
 
 class _PantallaPrincipalState extends State<PantallaPrincipal> {
   int _selectedIndex = 0;
-  final String _usuarioActualId = FirebaseAuth.instance.currentUser?.uid ?? '';
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final TextEditingController _controladorBusqueda = TextEditingController();
   String _busquedaTexto = '';
+  List<String> _contactosConMensajes = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _obtenerContactosConMensajes(); // Obtener contactos con los que has intercambiado mensajes
+  }
+
+  // Función para obtener los chats con mensajes
+  Future<void> _obtenerContactosConMensajes() async {
+    try {
+      String usernameActual = await _obtenerUsernameActual();
+
+      QuerySnapshot chatsSnapshot = await _firestore.collection('chats').get();
+      List<String> contactosTemp = [];
+
+      // Recorrer cada chat para verificar si tiene mensajes
+      for (var chatDoc in chatsSnapshot.docs) {
+        String chatId = chatDoc.id;
+
+        // Verificamos si el chat incluye al usuario actual
+        if (chatId.contains(usernameActual)) {
+          QuerySnapshot mensajesSnapshot = await _firestore
+              .collection('chats')
+              .doc(chatId)
+              .collection('messages')
+              .get();
+
+          if (mensajesSnapshot.docs.isNotEmpty) {
+            // Extraemos el nombre del contacto
+            String contactUsername =
+                chatId.replaceAll(usernameActual, '').replaceAll('_', '');
+            contactosTemp.add(contactUsername);
+          }
+        }
+      }
+
+      setState(() {
+        _contactosConMensajes = contactosTemp;
+      });
+    } catch (e) {
+      print('Error al obtener chats con mensajes: $e');
+    }
+  }
+
+  // Función para obtener el username actual desde Firebase Auth
+  Future<String> _obtenerUsernameActual() async {
+    String uid = _auth.currentUser!.uid;
+    DocumentSnapshot usuarioSnapshot =
+        await _firestore.collection('usuarios').doc(uid).get();
+    return usuarioSnapshot['username'];
+  }
 
   static const List<Widget> _widgetOptions = <Widget>[
-    Text('Chats'),
     Text('Grupos'),
     Text('Actividades'),
     Text('Novedades'),
@@ -34,33 +88,26 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
       appBar: AppBar(
         title: _cuadroBusqueda(),
         centerTitle: true,
-        backgroundColor:
-            const Color.fromARGB(255, 42, 143, 62), // Color verde del AppBar
+        backgroundColor: const Color.fromARGB(255, 42, 143, 62),
       ),
       body: Center(
-        child: _widgetOptions
-            .elementAt(_selectedIndex), // Muestra la opción seleccionada
+        child: _selectedIndex == 0
+            ? _listaContactos()
+            : _widgetOptions.elementAt(_selectedIndex),
       ),
       bottomNavigationBar: BottomNavBar(
         selectedIndex: _selectedIndex,
-        onItemTapped: (index) {
-          setState(() {
-            _selectedIndex = index;
-          });
-        },
+        onItemTapped: _onItemTapped,
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _agregarChat, // Llamada a la función modificada
-        // ignore: sort_child_properties_last
+        onPressed: _agregarChat,
         child: const Icon(Icons.chat),
-        backgroundColor: Colors.blue, // Color azul para el FloatingActionButton
+        backgroundColor: Colors.blue,
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation
-          .endFloat, // Asegura que se mantenga en la esquina inferior derecha
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 
-  // Cuadro de búsqueda de contactos por nombre
   Widget _cuadroBusqueda() {
     return TextField(
       controller: _controladorBusqueda,
@@ -82,9 +129,43 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
     );
   }
 
-  // Función para agregar un nuevo chat
+  Widget _listaContactos() {
+    List<String> contactosFiltrados = _contactosConMensajes.where((contacto) {
+      return contacto.toLowerCase().contains(_busquedaTexto.toLowerCase());
+    }).toList();
+
+    if (contactosFiltrados.isEmpty) {
+      return const Text(
+          'No se encontraron contactos con los que hayas intercambiado mensajes.');
+    }
+
+    return ListView.builder(
+      itemCount: contactosFiltrados.length,
+      itemBuilder: (context, index) {
+        String contactUsername = contactosFiltrados[index];
+        return ListTile(
+          leading: CircleAvatar(
+            child: Text(contactUsername[0].toUpperCase()),
+          ),
+          title: Text(contactUsername),
+          onTap: () {
+            abrirChat(contactUsername);
+          },
+        );
+      },
+    );
+  }
+
+  void abrirChat(String contactUsername) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ChatScreen(contactUsername: contactUsername),
+      ),
+    );
+  }
+
   void _agregarChat() {
-    // Navegar a la pantalla de agregar chat
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const AgregarChatPage()),

@@ -16,12 +16,14 @@ class _ChatScreenState extends State<ChatScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final TextEditingController _messageController = TextEditingController();
   String? _currentUserUsername;
+  String? _contactFullName;
   late Stream<QuerySnapshot> _messagesStream;
 
   @override
   void initState() {
     super.initState();
     _getCurrentUserUsername();
+    _getContactFullName(); // Llamamos para obtener el nombre completo del contacto
   }
 
   Future<void> _getCurrentUserUsername() async {
@@ -33,6 +35,39 @@ class _ChatScreenState extends State<ChatScreen> {
         _currentUserUsername = userDoc['username'];
         _setupMessagesStream();
       });
+    }
+  }
+
+  Future<void> _getContactFullName() async {
+    User? user = _auth.currentUser;
+    if (user != null) {
+      // Obtenemos el documento del usuario actual
+      DocumentSnapshot userDoc =
+          await _firestore.collection('usuarios').doc(user.uid).get();
+
+      // Verificamos si el documento existe y si tiene la subcolección 'contactos'
+      if (userDoc.exists) {
+        // Accedemos a la subcolección 'contactos' y buscamos por el username del contacto
+        DocumentSnapshot contactDoc = await _firestore
+            .collection('usuarios')
+            .doc(user.uid)
+            .collection('contactos')
+            .doc(widget.contactUsername)
+            .get();
+
+        if (contactDoc.exists) {
+          // Si encontramos el documento del contacto, obtenemos los nombres y apellidos
+          setState(() {
+            _contactFullName =
+                '${contactDoc['nombres']} ${contactDoc['apellidos']}'; // Concatenamos nombres y apellidos
+          });
+        } else {
+          print(
+              "No se encontró el contacto con username: ${widget.contactUsername}");
+        }
+      } else {
+        print("No se encontró el usuario logueado.");
+      }
     }
   }
 
@@ -71,11 +106,12 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.contactUsername),
+        title: Text(_contactFullName ??
+            'Cargando...'), // Mostramos el nombre completo o un indicador de carga
         backgroundColor: const Color.fromARGB(255, 42, 143, 62),
       ),
       body: _currentUserUsername == null
-          ? Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
                 Expanded(
