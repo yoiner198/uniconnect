@@ -113,14 +113,6 @@ class _RegistroPageState extends State<RegistroPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Registro de Usuario',
-          style: TextStyle(
-            fontSize: 20,
-          ),
-        ),
-      ),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16.0),
@@ -130,10 +122,9 @@ class _RegistroPageState extends State<RegistroPage> {
               const Text(
                 'UniConnect',
                 style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: Color.fromARGB(255, 42, 143, 62),
-                ),
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                    color: Color.fromARGB(255, 42, 143, 62)),
               ),
               const SizedBox(height: 40),
               Form(
@@ -186,7 +177,7 @@ class _RegistroPageState extends State<RegistroPage> {
                     ),
                     // ComboBox para seleccionar la facultad
                     DropdownButtonFormField<String>(
-                      decoration: const InputDecoration(labelText: 'Facultad'),
+                      decoration: const InputDecoration(labelText: 'Faculrtad'),
                       value: seleccionarFacultad,
                       items: facultades.map((String facultad) {
                         return DropdownMenuItem<String>(

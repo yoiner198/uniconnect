@@ -89,9 +89,16 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _sendMessage() async {
     if (_messageController.text.trim().isNotEmpty &&
         _currentUserUsername != null) {
+      String chatId = _getChatId();
+      await _firestore.collection('chats').doc(chatId).set({
+        'participants': [_currentUserUsername, widget.contactUsername],
+        'lastMessage': _messageController.text.trim(),
+        'lastMessageTimestamp': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
       await _firestore
           .collection('chats')
-          .doc(_getChatId())
+          .doc(chatId)
           .collection('messages')
           .add({
         'sender': _currentUserUsername,
@@ -106,8 +113,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_contactFullName ??
-            'Cargando...'), // Mostramos el nombre completo o un indicador de carga
+        title: Text(_contactFullName ?? widget.contactUsername),
         backgroundColor: const Color.fromARGB(255, 42, 143, 62),
       ),
       body: _currentUserUsername == null

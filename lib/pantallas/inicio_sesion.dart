@@ -33,10 +33,9 @@ class _InicioSesionPageState extends State<InicioSesionPage> {
           const SnackBar(content: Text('Inicio de sesión exitoso')),
         );
 
-        // Navegar a la pantalla principal después de iniciar sesión
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => PantallaPrincipal()),
+          MaterialPageRoute(builder: (context) => const PantallaPrincipal()),
         );
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(

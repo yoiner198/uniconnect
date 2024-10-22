@@ -20,7 +20,7 @@ class BottomNavBar extends StatelessWidget {
       case 0:
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => PantallaPrincipal()),
+          MaterialPageRoute(builder: (context) => const PantallaPrincipal()),
         );
         break;
       case 1:
@@ -44,7 +44,7 @@ class BottomNavBar extends StatelessWidget {
       case 4:
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) =>  AjustesPage()),
+          MaterialPageRoute(builder: (context) => AjustesPage()),
         );
         break;
     }

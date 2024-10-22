@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:uniconnect/pantallas/agregar_chat.dart';
-import 'package:uniconnect/widgets/bottom_nav_bar.dart';
+import 'agregar_chat.dart';
+import '../widgets/bottom_nav_bar.dart';
 import 'chat.dart';
 
 class PantallaPrincipal extends StatefulWidget {
+  const PantallaPrincipal({Key? key}) : super(key: key);
+
   @override
   _PantallaPrincipalState createState() => _PantallaPrincipalState();
 }
@@ -16,58 +18,7 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final TextEditingController _controladorBusqueda = TextEditingController();
   String _busquedaTexto = '';
-  List<String> _contactosConMensajes = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _obtenerContactosConMensajes(); // Obtener contactos con los que has intercambiado mensajes
-  }
-
-  // Función para obtener los chats con mensajes
-  Future<void> _obtenerContactosConMensajes() async {
-    try {
-      String usernameActual = await _obtenerUsernameActual();
-
-      QuerySnapshot chatsSnapshot = await _firestore.collection('chats').get();
-      List<String> contactosTemp = [];
-
-      // Recorrer cada chat para verificar si tiene mensajes
-      for (var chatDoc in chatsSnapshot.docs) {
-        String chatId = chatDoc.id;
-
-        // Verificamos si el chat incluye al usuario actual
-        if (chatId.contains(usernameActual)) {
-          QuerySnapshot mensajesSnapshot = await _firestore
-              .collection('chats')
-              .doc(chatId)
-              .collection('messages')
-              .get();
-
-          if (mensajesSnapshot.docs.isNotEmpty) {
-            // Extraemos el nombre del contacto
-            String contactUsername =
-                chatId.replaceAll(usernameActual, '').replaceAll('_', '');
-            contactosTemp.add(contactUsername);
-          }
-        }
-      }
-
-      setState(() {
-        _contactosConMensajes = contactosTemp;
-      });
-    } catch (e) {
-      print('Error al obtener chats con mensajes: $e');
-    }
-  }
-
-  // Función para obtener el username actual desde Firebase Auth
-  Future<String> _obtenerUsernameActual() async {
-    String uid = _auth.currentUser!.uid;
-    DocumentSnapshot usuarioSnapshot =
-        await _firestore.collection('usuarios').doc(uid).get();
-    return usuarioSnapshot['username'];
-  }
+  List<String> _contactosConMensajes = []; // Añadir esta línea
 
   static const List<Widget> _widgetOptions = <Widget>[
     Text('Grupos'),
@@ -80,6 +31,12 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
     setState(() {
       _selectedIndex = index;
     });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _obtenerContactosConMensajes();
   }
 
   @override
@@ -130,27 +87,13 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
   }
 
   Widget _listaContactos() {
-    List<String> contactosFiltrados = _contactosConMensajes.where((contacto) {
-      return contacto.toLowerCase().contains(_busquedaTexto.toLowerCase());
-    }).toList();
-
-    if (contactosFiltrados.isEmpty) {
-      return const Text(
-          'No se encontraron contactos con los que hayas intercambiado mensajes.');
-    }
-
     return ListView.builder(
-      itemCount: contactosFiltrados.length,
+      itemCount: _contactosConMensajes.length,
       itemBuilder: (context, index) {
-        String contactUsername = contactosFiltrados[index];
+        String contactUsername = _contactosConMensajes[index];
         return ListTile(
-          leading: CircleAvatar(
-            child: Text(contactUsername[0].toUpperCase()),
-          ),
           title: Text(contactUsername),
-          onTap: () {
-            abrirChat(contactUsername);
-          },
+          onTap: () => abrirChat(contactUsername),
         );
       },
     );
@@ -162,13 +105,63 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
       MaterialPageRoute(
         builder: (context) => ChatScreen(contactUsername: contactUsername),
       ),
-    );
+    ).then((_) {
+      // Actualizar la lista de contactos cuando se regrese del chat
+      _obtenerContactosConMensajes();
+    });
   }
 
-  void _agregarChat() {
-    Navigator.push(
+  void _agregarChat() async {
+    final result = await Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const AgregarChatPage()),
     );
+
+    if (result == true) {
+      setState(() {}); // Esto forzará una reconstrucción de la interfaz
+    }
+  }
+
+  Future<void> _obtenerContactosConMensajes() async {
+    try {
+      User? user = _auth.currentUser;
+      if (user != null) {
+        String uid = user.uid;
+        DocumentSnapshot userDoc =
+            await _firestore.collection('usuarios').doc(uid).get();
+        String currentUsername = userDoc['username'];
+
+        QuerySnapshot chatsSnapshot = await _firestore
+            .collection('chats')
+            .where('participants', arrayContains: currentUsername)
+            .get();
+
+        Set<String> contactosTemp = {};
+
+        for (var chatDoc in chatsSnapshot.docs) {
+          List<String> participants =
+              List<String>.from(chatDoc['participants']);
+          String contactUsername = participants
+              .firstWhere((username) => username != currentUsername);
+          contactosTemp.add(contactUsername);
+        }
+
+        setState(() {
+          _contactosConMensajes = contactosTemp.toList();
+        });
+      }
+    } catch (e) {
+      print('Error al obtener contactos con mensajes: $e');
+    }
+  }
+
+  void _filtrarContactos(String texto) {
+    setState(() {
+      _busquedaTexto = texto;
+      // Filtrar la lista de contactos con mensajes
+      _contactosConMensajes = _contactosConMensajes
+          .where((contacto) => contacto.contains(_busquedaTexto))
+          .toList();
+    });
   }
 }

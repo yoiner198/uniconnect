@@ -116,30 +116,32 @@ class _AgregarChatPageState extends State<AgregarChatPage> {
       usuario['estado'] = 'no inicializado';
       await _firestore
           .collection('usuarios')
-          .doc(_currentUserUid) // Usar el UID actual
+          .doc(_currentUserUid)
           .collection('contactos')
           .doc(usuario['username'])
           .set(usuario);
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Contacto agregado exitosamente')),
+        const SnackBar(content: Text('Contacto agregado exitosamente')),
       );
 
-      // Actualizar la lista de contactos
-      obtenerContactos();
+      await obtenerContactos();
     } catch (e) {
       print('Error al agregar contacto: $e');
     }
   }
 
   // Función para abrir el chat con un contacto
-  void abrirChat(String contactUsername) {
-    Navigator.push(
+  void abrirChat(String contactUsername) async {
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => ChatScreen(contactUsername: contactUsername),
       ),
     );
+
+    // Actualizar la pantalla principal al volver
+    Navigator.pop(context, true);
   }
 
   @override
