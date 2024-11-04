@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:geolocator/geolocator.dart';
 
 class RegistroPage extends StatefulWidget {
   const RegistroPage({super.key});
@@ -76,7 +77,62 @@ class _RegistroPageState extends State<RegistroPage> {
   String? seleccionarFacultad;
   String? seleccionarCarrera;
 
+  Future<void> _solicitarPermisoUbicacion() async {
+    // Mostrar un diálogo personalizado para solicitar permiso
+    bool? permitir = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Uniconnect quiere conocer tu ubicación'),
+          content:
+              const Text('¿Permites que la aplicación acceda a tu ubicación?'),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false), // Denegar
+              child: const Text('Denegar'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true), // Permitir
+              child: const Text('Permitir'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (permitir == true) {
+      // Si el usuario permite, solicita el permiso
+      LocationPermission permiso = await Geolocator.checkPermission();
+      if (permiso == LocationPermission.denied) {
+        permiso = await Geolocator.requestPermission();
+        if (permiso == LocationPermission.denied) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Permiso de ubicación denegado')),
+          );
+          return;
+        }
+      }
+
+      // Obtener la ubicación actual
+      Position posicion = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high);
+      print(
+          'Ubicación actual: Latitud: ${posicion.latitude}, Longitud: ${posicion.longitude}');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Permiso de ubicación concedido')),
+      );
+    } else {
+      // Si el usuario deniega, muestra un mensaje
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Permiso de ubicación denegado')),
+      );
+    }
+  }
+
   Future<void> registrarUsuario() async {
+    // Solicitar permiso de ubicación al registrarse
+    await _solicitarPermisoUbicacion();
+
     if (_formKey.currentState!.validate()) {
       try {
         UserCredential userCredential =
