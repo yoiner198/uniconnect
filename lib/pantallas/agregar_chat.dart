@@ -94,10 +94,20 @@ class _AgregarChatPageState extends State<AgregarChatPage> {
 
   // Buscar usuarios por username en Firebase
   Future<void> buscarUsuario(String username) async {
+    if (username.isEmpty) {
+      setState(() {
+        resultadosBusqueda = [];
+      });
+      return;
+    }
+
     try {
       QuerySnapshot snapshot = await _firestore
           .collection('usuarios')
-          .where('username', isEqualTo: username)
+          .where('username', isGreaterThanOrEqualTo: username)
+          .where('username',
+              isLessThan:
+                  username + '\uf8ff') // Esto permite buscar coincidencias
           .get();
 
       setState(() {
@@ -167,6 +177,9 @@ class _AgregarChatPageState extends State<AgregarChatPage> {
                   },
                 ),
               ),
+              onChanged: (value) {
+                buscarUsuario(value.trim()); // Llamar a buscarUsuario en tiempo real
+              },
             ),
             const SizedBox(height: 20),
             // Resultados de la búsqueda

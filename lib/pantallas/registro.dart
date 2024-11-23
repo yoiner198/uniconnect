@@ -233,7 +233,7 @@ class _RegistroPageState extends State<RegistroPage> {
                     ),
                     // ComboBox para seleccionar la facultad
                     DropdownButtonFormField<String>(
-                      decoration: const InputDecoration(labelText: 'Faculrtad'),
+                      decoration: const InputDecoration(labelText: 'Facultad'),
                       value: seleccionarFacultad,
                       items: facultades.map((String facultad) {
                         return DropdownMenuItem<String>(
