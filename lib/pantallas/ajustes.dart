@@ -1,4 +1,3 @@
-// pantallas/ajustes.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -12,7 +11,6 @@ class AjustesPage extends StatefulWidget {
 }
 
 class _AjustesPageState extends State<AjustesPage> {
-  // Controladores para los campos de texto
   final TextEditingController _nombresController = TextEditingController();
   final TextEditingController _apellidosController = TextEditingController();
   final TextEditingController _telefonoController = TextEditingController();
@@ -23,7 +21,6 @@ class _AjustesPageState extends State<AjustesPage> {
 
   String? _correoUsuario;
 
-  // Método para cargar los datos del usuario desde Firebase
   Future<void> _cargarDatosUsuario() async {
     try {
       User? usuario = _auth.currentUser;
@@ -31,8 +28,7 @@ class _AjustesPageState extends State<AjustesPage> {
       if (usuario != null) {
         String correo = usuario.email!;
         setState(() {
-          _correoUsuario =
-              correo; // Asignamos el correo del usuario a la variable
+          _correoUsuario = correo;
         });
 
         DocumentSnapshot usuarioSnapshot = await _firestore
@@ -59,17 +55,93 @@ class _AjustesPageState extends State<AjustesPage> {
     }
   }
 
+  Future<void> _cambiarContrasena() async {
+    final TextEditingController nuevaContrasenaController =
+        TextEditingController();
+    final TextEditingController confirmarContrasenaController =
+        TextEditingController();
+
+    await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Cambiar contraseña'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nuevaContrasenaController,
+                obscureText: true,
+                decoration:
+                    const InputDecoration(labelText: 'Nueva contraseña'),
+              ),
+              TextField(
+                controller: confirmarContrasenaController,
+                obscureText: true,
+                decoration:
+                    const InputDecoration(labelText: 'Confirmar contraseña'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Cerrar el diálogo
+              },
+              child: const Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () async {
+                String nuevaContrasena = nuevaContrasenaController.text.trim();
+                String confirmarContrasena =
+                    confirmarContrasenaController.text.trim();
+
+                if (nuevaContrasena.isEmpty || confirmarContrasena.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text('Por favor, completa ambos campos.')),
+                  );
+                  return;
+                }
+
+                if (nuevaContrasena != confirmarContrasena) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text('Las contraseñas no coinciden.')),
+                  );
+                  return;
+                }
+
+                try {
+                  User? usuario = _auth.currentUser;
+
+                  if (usuario != null) {
+                    await usuario.updatePassword(nuevaContrasena);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                          content: Text('Contraseña actualizada con éxito.')),
+                    );
+                    Navigator.of(context).pop(); // Cerrar el diálogo
+                  }
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                        content: Text('Error al cambiar la contraseña: $e')),
+                  );
+                }
+              },
+              child: const Text('Guardar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   void initState() {
     super.initState();
     _cargarDatosUsuario();
-  }
-
-  // Método para manejar la navegación inferior
-  void _onItemTapped(int index) {
-    setState(() {});
-
-    // Redirigir a las diferentes páginas según el índice
   }
 
   @override
@@ -134,9 +206,7 @@ class _AjustesPageState extends State<AjustesPage> {
                 const Icon(Icons.lock),
                 const SizedBox(width: 10),
                 GestureDetector(
-                  onTap: () {
-                    // Lógica para cambiar contraseña
-                  },
+                  onTap: _cambiarContrasena,
                   child: const Text(
                     'Cambiar contraseña',
                     style: TextStyle(
