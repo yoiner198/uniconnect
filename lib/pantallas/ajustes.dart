@@ -1,94 +1,75 @@
+// pantallas/ajustes.dart
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // Para manejar la autenticación de Firebase
-import 'package:uniconnect/pantallas/inicio_sesion.dart'; // Asegúrate de que la ruta sea correcta
-import 'package:uniconnect/widgets/bottom_nav_bar.dart'; // Asegúrate de usar la ruta correcta
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:uniconnect/widgets/bottom_nav_bar.dart';
 
 class AjustesPage extends StatefulWidget {
+  const AjustesPage({Key? key}) : super(key: key);
+
   @override
   _AjustesPageState createState() => _AjustesPageState();
 }
 
 class _AjustesPageState extends State<AjustesPage> {
-  final TextEditingController nombresController = TextEditingController();
-  final TextEditingController apellidosController = TextEditingController();
-  final TextEditingController telefonoController = TextEditingController();
-  final TextEditingController carreraController = TextEditingController();
-  final String correoInstitucional = 'usuario@unicesar.edu.co'; // Ejemplo
-  bool mostrarTelefono = true;
-  String visibilidadPerfil = 'todos'; // Opciones: 'todos', 'contactos', 'nadie'
-  bool notificacionesMensajes = true;
-  bool notificacionesGrupos = true;
-  bool vibracion = true;
-  String idioma = 'Español'; // Opciones: 'Español', 'Inglés'
-  bool temaOscuro = false;
+  // Controladores para los campos de texto
+  final TextEditingController _nombresController = TextEditingController();
+  final TextEditingController _apellidosController = TextEditingController();
+  final TextEditingController _telefonoController = TextEditingController();
+  final TextEditingController _carreraController = TextEditingController();
 
-  Future<void> cambiarFotoPerfil() async {
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Foto de perfil cambiada')),
-      );
-    }
-  }
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  void cambiarContrasena() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Función para cambiar contraseña')),
-    );
-  }
+  String? _correoUsuario;
 
-  // Función para cerrar sesión y redirigir a la pantalla de inicio de sesión
-  void cerrarSesion() async {
+  // Método para cargar los datos del usuario desde Firebase
+  Future<void> _cargarDatosUsuario() async {
     try {
-      await FirebaseAuth.instance.signOut(); // Cierra la sesión actual
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const InicioSesionPage()), // Redirige al inicio de sesión
-      );
+      User? usuario = _auth.currentUser;
+
+      if (usuario != null) {
+        String correo = usuario.email!;
+        setState(() {
+          _correoUsuario =
+              correo; // Asignamos el correo del usuario a la variable
+        });
+
+        DocumentSnapshot usuarioSnapshot = await _firestore
+            .collection('usuarios')
+            .where('correo', isEqualTo: correo)
+            .limit(1)
+            .get()
+            .then((querySnapshot) => querySnapshot.docs.first);
+
+        if (usuarioSnapshot.exists) {
+          Map<String, dynamic> datos =
+              usuarioSnapshot.data() as Map<String, dynamic>;
+
+          _nombresController.text = datos['nombres'] ?? '';
+          _apellidosController.text = datos['apellidos'] ?? '';
+          _telefonoController.text = datos['telefono'] ?? '';
+          _carreraController.text = datos['carrera'] ?? '';
+        }
+      }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al cerrar sesión: $e')),
+        SnackBar(content: Text('Error al cargar datos: $e')),
       );
     }
   }
 
-  // Función para mostrar cuadro de confirmación antes de borrar cuenta
-  void confirmarBorrarCuenta() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text("Confirmar eliminación de cuenta"),
-          content: const Text("¿Estás seguro de que deseas borrar tu cuenta? Esta acción no se puede deshacer."),
-          actions: <Widget>[
-            TextButton(
-              child: const Text("No"),
-              onPressed: () {
-                Navigator.of(context).pop(); // Cierra el cuadro de diálogo
-              },
-            ),
-            TextButton(
-              child: const Text("Sí"),
-              onPressed: () async {
-                try {
-                  await FirebaseAuth.instance.currentUser?.delete(); // Elimina la cuenta del usuario
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (context) => const InicioSesionPage()), // Redirige al inicio de sesión
-                  );
-                } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error al borrar cuenta: $e')),
-                  );
-                }
-              },
-            ),
-          ],
-        );
-      },
-    );
+  @override
+  void initState() {
+    super.initState();
+    _cargarDatosUsuario();
+  }
+
+  // Método para manejar la navegación inferior
+  void _onItemTapped(int index) {
+    setState(() {});
+
+    // Redirigir a las diferentes páginas según el índice
   }
 
   @override
@@ -107,172 +88,84 @@ class _AjustesPageState extends State<AjustesPage> {
               'Ajustes de perfil',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 10),
-            ListTile(
-              title: const Text('Foto de perfil'),
-              leading: const Icon(Icons.account_circle),
-              trailing: const Icon(Icons.edit),
-              onTap: cambiarFotoPerfil,
-            ),
-            ListTile(
-              title: TextFormField(
-                controller: nombresController,
-                decoration: const InputDecoration(labelText: 'Nombres'),
-              ),
-            ),
-            ListTile(
-              title: TextFormField(
-                controller: apellidosController,
-                decoration: const InputDecoration(labelText: 'Apellidos'),
-              ),
-            ),
-            ListTile(
-              title: TextFormField(
-                controller: telefonoController,
-                decoration: const InputDecoration(labelText: 'Número de teléfono'),
-              ),
-            ),
-            ListTile(
-              title: TextFormField(
-                controller: carreraController,
-                decoration: const InputDecoration(labelText: 'Carrera'),
-              ),
-            ),
-            ListTile(
-              title: Text('Correo institucional: $correoInstitucional'),
-              leading: const Icon(Icons.email),
-            ),
-            ListTile(
-              title: const Text('Cambiar contraseña'),
-              leading: const Icon(Icons.lock),
-              trailing: const Icon(Icons.arrow_forward),
-              onTap: cambiarContrasena,
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 40,
+                  child: Icon(Icons.person, size: 40, color: Colors.grey[700]),
+                ),
+                const SizedBox(width: 20),
+                IconButton(
+                  icon: const Icon(Icons.edit),
+                  onPressed: () {
+                    // Lógica para cambiar foto de perfil (opcional)
+                  },
+                ),
+              ],
             ),
             const SizedBox(height: 20),
+            TextFormField(
+              controller: _nombresController,
+              decoration: const InputDecoration(labelText: 'Nombres'),
+            ),
+            TextFormField(
+              controller: _apellidosController,
+              decoration: const InputDecoration(labelText: 'Apellidos'),
+            ),
+            TextFormField(
+              controller: _carreraController,
+              decoration: const InputDecoration(labelText: 'Carrera'),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                const Icon(Icons.email),
+                const SizedBox(width: 10),
+                Text(
+                  _correoUsuario ?? 'Cargando...',
+                  style: const TextStyle(fontSize: 16),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                const Icon(Icons.lock),
+                const SizedBox(width: 10),
+                GestureDetector(
+                  onTap: () {
+                    // Lógica para cambiar contraseña
+                  },
+                  child: const Text(
+                    'Cambiar contraseña',
+                    style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.blue,
+                        decoration: TextDecoration.underline),
+                  ),
+                ),
+              ],
+            ),
+            const Divider(height: 40),
             const Text(
               'Ajustes de privacidad',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 20),
             SwitchListTile(
               title: const Text('Visibilidad del número de teléfono'),
-              value: mostrarTelefono,
+              value: true,
               onChanged: (bool value) {
-                setState(() {
-                  mostrarTelefono = value;
-                });
+                // Lógica para cambiar visibilidad
               },
-            ),
-            ListTile(
-              title: const Text('Quién puede ver tu perfil'),
-              trailing: DropdownButton<String>(
-                value: visibilidadPerfil,
-                onChanged: (String? newValue) {
-                  setState(() {
-                    visibilidadPerfil = newValue!;
-                  });
-                },
-                items: <String>['todos', 'contactos', 'nadie']
-                    .map<DropdownMenuItem<String>>((String value) {
-                  return DropdownMenuItem<String>(
-                    value: value,
-                    child: Text(value),
-                  );
-                }).toList(),
-              ),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Ajustes de notificaciones',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 10),
-            SwitchListTile(
-              title: const Text('Notificaciones de mensajes nuevos'),
-              value: notificacionesMensajes,
-              onChanged: (bool value) {
-                setState(() {
-                  notificacionesMensajes = value;
-                });
-              },
-            ),
-            SwitchListTile(
-              title: const Text('Notificaciones de actividades de grupo'),
-              value: notificacionesGrupos,
-              onChanged: (bool value) {
-                setState(() {
-                  notificacionesGrupos = value;
-                });
-              },
-            ),
-            SwitchListTile(
-              title: const Text('Vibraciones'),
-              value: vibracion,
-              onChanged: (bool value) {
-                setState(() {
-                  vibracion = value;
-                });
-              },
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Ajustes generales',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 10),
-            ListTile(
-              title: const Text('Idioma'),
-              trailing: DropdownButton<String>(
-                value: idioma,
-                onChanged: (String? newValue) {
-                  setState(() {
-                    idioma = newValue!;
-                  });
-                },
-                items: <String>['Español', 'Inglés']
-                    .map<DropdownMenuItem<String>>((String value) {
-                  return DropdownMenuItem<String>(
-                    value: value,
-                    child: Text(value),
-                  );
-                }).toList(),
-              ),
-            ),
-            SwitchListTile(
-              title: const Text('Tema oscuro'),
-              value: temaOscuro,
-              onChanged: (bool value) {
-                setState(() {
-                  temaOscuro = value;
-                });
-              },
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: cerrarSesion, // Llamada a la función para cerrar sesión
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                minimumSize: const Size(double.infinity, 50),
-              ),
-              child: const Text('Cerrar sesión'),
-            ),
-            const SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: confirmarBorrarCuenta, // Llamada a la función para borrar cuenta con confirmación
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.redAccent,
-                minimumSize: const Size(double.infinity, 50),
-              ),
-              child: const Text('Borrar cuenta'),
             ),
           ],
         ),
       ),
       bottomNavigationBar: BottomNavBar(
-        selectedIndex: 4, // Índice para Ajustes
-        onItemTapped: (index) {
-          // Lógica de navegación al cambiar entre elementos del menú
-        },
+        selectedIndex: 1, // Índice para Grupos
+        onItemTapped: (index) {},
       ),
     );
   }
