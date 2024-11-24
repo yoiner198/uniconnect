@@ -1,6 +1,10 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:file_picker/file_picker.dart'; // Para seleccionar archivos
+import 'package:intl/intl.dart'; // Para formatear la hora
 
 class ChatScreen extends StatefulWidget {
   final String contactUsername;
@@ -14,6 +18,7 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseStorage _storage = FirebaseStorage.instance;
   final TextEditingController _messageController = TextEditingController();
   String? _currentUserUsername;
   String? _contactFullName;
@@ -23,7 +28,7 @@ class _ChatScreenState extends State<ChatScreen> {
   void initState() {
     super.initState();
     _getCurrentUserUsername();
-    _getContactFullName(); // Llamamos para obtener el nombre completo del contacto
+    _getContactFullName();
   }
 
   Future<void> _getCurrentUserUsername() async {
@@ -41,13 +46,10 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _getContactFullName() async {
     User? user = _auth.currentUser;
     if (user != null) {
-      // Obtenemos el documento del usuario actual
       DocumentSnapshot userDoc =
           await _firestore.collection('usuarios').doc(user.uid).get();
 
-      // Verificamos si el documento existe y si tiene la subcolección 'contactos'
       if (userDoc.exists) {
-        // Accedemos a la subcolección 'contactos' y buscamos por el username del contacto
         DocumentSnapshot contactDoc = await _firestore
             .collection('usuarios')
             .doc(user.uid)
@@ -56,10 +58,9 @@ class _ChatScreenState extends State<ChatScreen> {
             .get();
 
         if (contactDoc.exists) {
-          // Si encontramos el documento del contacto, obtenemos los nombres y apellidos
           setState(() {
             _contactFullName =
-                '${contactDoc['nombres']} ${contactDoc['apellidos']}'; // Concatenamos nombres y apellidos
+                '${contactDoc['nombres']} ${contactDoc['apellidos']}';
           });
         } else {
           print(
@@ -86,13 +87,12 @@ class _ChatScreenState extends State<ChatScreen> {
     return ids.join('_');
   }
 
-  Future<void> _sendMessage() async {
-    if (_messageController.text.trim().isNotEmpty &&
-        _currentUserUsername != null) {
+  Future<void> _sendMessage({String? text, String? fileUrl, String? fileType}) async {
+    if ((text?.trim().isNotEmpty ?? false) || fileUrl != null) {
       String chatId = _getChatId();
       await _firestore.collection('chats').doc(chatId).set({
         'participants': [_currentUserUsername, widget.contactUsername],
-        'lastMessage': _messageController.text.trim(),
+        'lastMessage': text ?? 'Archivo enviado',
         'lastMessageTimestamp': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
@@ -102,10 +102,54 @@ class _ChatScreenState extends State<ChatScreen> {
           .collection('messages')
           .add({
         'sender': _currentUserUsername,
-        'text': _messageController.text.trim(),
+        'text': text,
+        'fileUrl': fileUrl,
+        'fileType': fileType,
         'timestamp': FieldValue.serverTimestamp(),
       });
-      _messageController.clear();
+
+      if (text != null) {
+        _messageController.clear();
+      }
+    }
+  }
+
+  Future<void> _pickFile(String type) async {
+    FilePickerResult? result;
+    try {
+      result = await FilePicker.platform.pickFiles(
+        type: type == 'photo' ? FileType.image : FileType.custom,
+        allowedExtensions: type == 'audio' ? ['mp3', 'wav', 'm4a'] : null,
+      );
+
+      if (result != null && result.files.single.path != null) {
+        String fileName = result.files.single.name;
+        String filePath = result.files.single.path!; // Verifica que no sea nulo
+        String chatId = _getChatId();
+
+        // Crear un objeto File
+        File file = File(filePath);
+
+        if (!file.existsSync()) {
+          print('Error: El archivo no existe');
+          return;
+        }
+
+        // Subir el archivo a Firebase Storage
+        TaskSnapshot uploadTask = await _storage
+            .ref('chats/$chatId/$fileName')
+            .putFile(file);
+
+        // Obtener la URL del archivo
+        String fileUrl = await uploadTask.ref.getDownloadURL();
+
+        // Enviar el mensaje con el archivo
+        await _sendMessage(fileUrl: fileUrl, fileType: type);
+      } else {
+        print('No se seleccionó ningún archivo');
+      }
+    } catch (e) {
+      print('Error al seleccionar archivo: $e');
     }
   }
 
@@ -135,6 +179,14 @@ class _ChatScreenState extends State<ChatScreen> {
                           var message =
                               messages[index].data() as Map<String, dynamic>;
                           bool isMe = message['sender'] == _currentUserUsername;
+
+                          // Formatear la hora del mensaje
+                          Timestamp? timestamp = message['timestamp'];
+                          String formattedTime = timestamp != null
+                              ? DateFormat('hh:mm a')
+                                  .format(timestamp.toDate())
+                              : '';
+
                           return Align(
                             alignment: isMe
                                 ? Alignment.centerRight
@@ -148,7 +200,38 @@ class _ChatScreenState extends State<ChatScreen> {
                                     isMe ? Colors.blue[100] : Colors.grey[300],
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              child: Text(message['text'] ?? ''),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (message['fileType'] == 'photo')
+                                    Image.network(
+                                      message['fileUrl'],
+                                      width: 200,
+                                      height: 200,
+                                      fit: BoxFit.cover,
+                                    )
+                                  else if (message['fileType'] == 'audio')
+                                    IconButton(
+                                      icon: const Icon(Icons.play_arrow),
+                                      onPressed: () {
+                                        // Lógica para reproducir audio
+                                      },
+                                    )
+                                  else
+                                    Text(
+                                      message['text'] ?? '',
+                                      style: const TextStyle(fontSize: 16),
+                                    ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    formattedTime,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           );
                         },
@@ -160,6 +243,14 @@ class _ChatScreenState extends State<ChatScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                   child: Row(
                     children: [
+                      IconButton(
+                        icon: const Icon(Icons.photo),
+                        onPressed: () => _pickFile('photo'),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.mic),
+                        onPressed: () => _pickFile('audio'),
+                      ),
                       Expanded(
                         child: TextField(
                           controller: _messageController,
@@ -169,7 +260,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                       IconButton(
                         icon: const Icon(Icons.send),
-                        onPressed: _sendMessage,
+                        onPressed: () => _sendMessage(text: _messageController.text),
                       ),
                     ],
                   ),
