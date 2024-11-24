@@ -211,11 +211,12 @@ class _ChatScreenState extends State<ChatScreen> {
                                       fit: BoxFit.cover,
                                     )
                                   else if (message['fileType'] == 'audio')
-                                    IconButton(
-                                      icon: const Icon(Icons.play_arrow),
+                                    TextButton.icon(
                                       onPressed: () {
-                                        // Lógica para reproducir audio
+                                        print("Reproducir audio");
                                       },
+                                      icon: const Icon(Icons.play_arrow),
+                                      label: const Text("Reproducir"),
                                     )
                                   else
                                     Text(
