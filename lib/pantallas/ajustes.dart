@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:uniconnect/widgets/bottom_nav_bar.dart';
+import 'package:uniconnect/pantallas/inicio_sesion.dart';
 
 class AjustesPage extends StatefulWidget {
   const AjustesPage({Key? key}) : super(key: key);
@@ -138,6 +139,20 @@ class _AjustesPageState extends State<AjustesPage> {
     );
   }
 
+  Future<void> _cerrarSesion() async {
+    try {
+      await _auth.signOut(); // Cierra la sesión actual de FirebaseAuth
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const InicioSesionPage()),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al cerrar sesión: $e')),
+      );
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -218,17 +233,19 @@ class _AjustesPageState extends State<AjustesPage> {
               ],
             ),
             const Divider(height: 40),
-            const Text(
-              'Ajustes de privacidad',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 20),
-            SwitchListTile(
-              title: const Text('Visibilidad del número de teléfono'),
-              value: true,
-              onChanged: (bool value) {
-                // Lógica para cambiar visibilidad
-              },
+            Center(
+              child: ElevatedButton(
+                onPressed: _cerrarSesion,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                ),
+                child: const Text(
+                  'Cerrar Sesión',
+                  style: TextStyle(fontSize: 16, color: Colors.white),
+                ),
+              ),
             ),
           ],
         ),
