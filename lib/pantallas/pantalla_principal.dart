@@ -18,8 +18,9 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final TextEditingController _controladorBusqueda = TextEditingController();
   String _busquedaTexto = '';
-  List<String> _contactosConMensajes = []; // Añadir esta línea
-  List<Map<String, dynamic>> _notificaciones = []; // Añadir esta línea
+  List<String> _contactosConMensajes = [];
+  List<String> _contactosFiltrados = [];
+  List<Map<String, dynamic>> _notificaciones = [];
 
   static const List<Widget> _widgetOptions = <Widget>[
     Text('Grupos'),
@@ -38,10 +39,9 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
   void initState() {
     super.initState();
     _obtenerContactosConMensajes();
-    _obtenerNotificaciones(); // Llamar a la función para obtener notificaciones
+    _obtenerNotificaciones();
   }
 
-  // Método para obtener las notificaciones
   Future<void> _obtenerNotificaciones() async {
     try {
       User? user = _auth.currentUser;
@@ -53,10 +53,8 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
 
         setState(() {
           _notificaciones = notificacionesSnapshot.docs
-              .map((doc) => {
-                    ...doc.data() as Map<String, dynamic>,
-                    'id': doc.id
-                  }) // Agregar el ID
+              .map((doc) =>
+                  {...doc.data() as Map<String, dynamic>, 'id': doc.id})
               .toList();
         });
       }
@@ -76,14 +74,14 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
           IconButton(
             icon: const Icon(Icons.notifications),
             onPressed: () {
-              _mostrarNotificaciones(); // Método para mostrar las notificaciones
+              _mostrarNotificaciones();
             },
           ),
         ],
       ),
       body: Column(
         children: [
-          _mostrarNotificacionesWidget(), // Mostrar las notificaciones
+          _mostrarNotificacionesWidget(),
           Expanded(
             child: Center(
               child: _selectedIndex == 0
@@ -120,19 +118,27 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
         fillColor: Colors.white,
       ),
       onChanged: (texto) {
-        setState(() {
-          _busquedaTexto = texto;
-        });
+        _filtrarContactos(texto);
       },
     );
   }
 
   Widget _listaContactos() {
     return ListView.builder(
-      itemCount: _contactosConMensajes.length,
+      itemCount: _contactosFiltrados.length,
       itemBuilder: (context, index) {
-        String contactUsername = _contactosConMensajes[index];
+        String contactUsername = _contactosFiltrados[index];
         return ListTile(
+          leading: CircleAvatar(
+            backgroundColor: const Color.fromARGB(255, 113, 135, 117),
+            child: Text(
+              contactUsername.isNotEmpty
+                  ? contactUsername[0].toUpperCase()
+                  : '?',
+              style: const TextStyle(
+                  color: Colors.white, fontWeight: FontWeight.bold),
+            ),
+          ),
           title: Text(contactUsername),
           onTap: () => abrirChat(contactUsername),
         );
@@ -147,7 +153,6 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
         builder: (context) => ChatScreen(contactUsername: contactUsername),
       ),
     ).then((_) {
-      // Actualizar la lista de contactos cuando se regrese del chat
       _obtenerContactosConMensajes();
     });
   }
@@ -159,8 +164,8 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
     );
 
     if (result == true) {
-      _obtenerNotificaciones(); // Actualizar la lista de notificaciones
-      setState(() {}); // Esto forzará una reconstrucción de la interfaz
+      _obtenerNotificaciones();
+      setState(() {});
     }
   }
 
@@ -190,6 +195,7 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
 
         setState(() {
           _contactosConMensajes = contactosTemp.toList();
+          _contactosFiltrados = _contactosConMensajes;
         });
       }
     } catch (e) {
@@ -200,14 +206,13 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
   void _filtrarContactos(String texto) {
     setState(() {
       _busquedaTexto = texto;
-      // Filtrar la lista de contactos con mensajes
-      _contactosConMensajes = _contactosConMensajes
-          .where((contacto) => contacto.contains(_busquedaTexto))
+      _contactosFiltrados = _contactosConMensajes
+          .where((contacto) =>
+              contacto.toLowerCase().contains(_busquedaTexto.toLowerCase()))
           .toList();
     });
   }
 
-  // Método para mostrar las notificaciones
   void _mostrarNotificaciones() {
     showDialog(
       context: context,
@@ -216,7 +221,7 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
           title: const Text('Solicitudes de Amistad'),
           content: SizedBox(
             width: double.maxFinite,
-            child: _mostrarNotificacionesWidget(), // Método para mostrar las notificaciones
+            child: _mostrarNotificacionesWidget(),
           ),
           actions: [
             TextButton(
@@ -233,12 +238,13 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
 
   Widget _mostrarNotificacionesWidget() {
     if (_notificaciones.isEmpty) {
-      return const Text('No tienes notificaciones'); // Mensaje si no hay notificaciones
+      return const Text('No tienes notificaciones');
     }
     return Column(
       children: _notificaciones.map((notificacion) {
         return ListTile(
-          title: Text('${notificacion['de']} te ha enviado una solicitud de amistad'),
+          title: Text(
+              '${notificacion['de']} te ha enviado una solicitud de amistad'),
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -246,14 +252,14 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
                 icon: const Icon(Icons.check),
                 onPressed: () async {
                   await _aceptarSolicitud(notificacion);
-                  Navigator.of(context).pop(); // Cerrar el diálogo
+                  Navigator.of(context).pop();
                 },
               ),
               IconButton(
                 icon: const Icon(Icons.delete),
                 onPressed: () async {
                   await _eliminarSolicitud(notificacion);
-                  Navigator.of(context).pop(); // Cerrar el diálogo
+                  Navigator.of(context).pop();
                 },
               ),
             ],
@@ -270,11 +276,10 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
   }
 
   Future<void> _eliminarSolicitud(Map<String, dynamic> notificacion) async {
-    // Lógica para eliminar la notificación de Firestore
     await _firestore
         .collection('notificaciones')
         .doc(notificacion['id'])
         .delete();
-    _obtenerNotificaciones(); // Actualizar la lista de notificaciones
+    _obtenerNotificaciones();
   }
 }

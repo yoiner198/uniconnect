@@ -15,7 +15,6 @@ class _AjustesPageState extends State<AjustesPage> {
   final TextEditingController _nombresController = TextEditingController();
   final TextEditingController _apellidosController = TextEditingController();
   final TextEditingController _telefonoController = TextEditingController();
-  final TextEditingController _carreraController = TextEditingController();
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -46,7 +45,6 @@ class _AjustesPageState extends State<AjustesPage> {
           _nombresController.text = datos['nombres'] ?? '';
           _apellidosController.text = datos['apellidos'] ?? '';
           _telefonoController.text = datos['telefono'] ?? '';
-          _carreraController.text = datos['carrera'] ?? '';
         }
       }
     } catch (e) {
@@ -199,10 +197,6 @@ class _AjustesPageState extends State<AjustesPage> {
             TextFormField(
               controller: _apellidosController,
               decoration: const InputDecoration(labelText: 'Apellidos'),
-            ),
-            TextFormField(
-              controller: _carreraController,
-              decoration: const InputDecoration(labelText: 'Carrera'),
             ),
             const SizedBox(height: 20),
             Row(

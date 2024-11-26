@@ -87,7 +87,8 @@ class _ChatScreenState extends State<ChatScreen> {
     return ids.join('_');
   }
 
-  Future<void> _sendMessage({String? text, String? fileUrl, String? fileType}) async {
+  Future<void> _sendMessage(
+      {String? text, String? fileUrl, String? fileType}) async {
     if ((text?.trim().isNotEmpty ?? false) || fileUrl != null) {
       String chatId = _getChatId();
       await _firestore.collection('chats').doc(chatId).set({
@@ -136,9 +137,8 @@ class _ChatScreenState extends State<ChatScreen> {
         }
 
         // Subir el archivo a Firebase Storage
-        TaskSnapshot uploadTask = await _storage
-            .ref('chats/$chatId/$fileName')
-            .putFile(file);
+        TaskSnapshot uploadTask =
+            await _storage.ref('chats/$chatId/$fileName').putFile(file);
 
         // Obtener la URL del archivo
         String fileUrl = await uploadTask.ref.getDownloadURL();
@@ -183,8 +183,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           // Formatear la hora del mensaje
                           Timestamp? timestamp = message['timestamp'];
                           String formattedTime = timestamp != null
-                              ? DateFormat('hh:mm a')
-                                  .format(timestamp.toDate())
+                              ? DateFormat('hh:mm a').format(timestamp.toDate())
                               : '';
 
                           return Align(
@@ -257,11 +256,13 @@ class _ChatScreenState extends State<ChatScreen> {
                           controller: _messageController,
                           decoration: const InputDecoration(
                               hintText: 'Escribe un mensaje...'),
+                          onSubmitted: (value) => _sendMessage(text: value),
                         ),
                       ),
                       IconButton(
                         icon: const Icon(Icons.send),
-                        onPressed: () => _sendMessage(text: _messageController.text),
+                        onPressed: () =>
+                            _sendMessage(text: _messageController.text),
                       ),
                     ],
                   ),
