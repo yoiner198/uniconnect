@@ -143,11 +143,28 @@ class _ChatGrupoPageState extends State<ChatGrupoPage> {
             ),
             if (_grupoData?['adminUid'] == _currentUserUid)
               ListTile(
+                leading: const Icon(Icons.person_add),
+                title: const Text('Agregar miembros'),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _mostrarAgregarMiembros();
+                },
+              ),
+            if (_grupoData?['miembrosNombres'] != null)
+              ListTile(
+                leading: const Icon(Icons.group),
+                title: const Text('Ver miembros'),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _mostrarMiembros();
+                },
+              ),
+            if (_grupoData?['adminUid'] == _currentUserUid)
+              ListTile(
                 leading: const Icon(Icons.settings),
                 title: const Text('Cambiar nombre del grupo'),
                 onTap: () {
-                  Navigator.of(context)
-                      .pop(); // Cerrar el BottomSheet antes de abrir el diálogo
+                  Navigator.of(context).pop();
                   _cambiarNombreGrupo();
                 },
               ),
@@ -164,6 +181,184 @@ class _ChatGrupoPageState extends State<ChatGrupoPage> {
         );
       },
     );
+  }
+
+  Future<void> _mostrarMiembros() async {
+    if (_grupoData?['miembrosNombres'] == null) return;
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Miembros del Grupo'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (String miembro in _grupoData!['miembrosNombres'])
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4.0),
+                  child: Text(miembro),
+                ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('Cerrar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _mostrarAgregarMiembros() async {
+    // Lista para almacenar usuarios seleccionados
+    List<String> usuariosSeleccionados = [];
+    // Controlador para la búsqueda
+    TextEditingController busquedaController = TextEditingController();
+    // Estado para filtrar usuarios
+    String filtro = '';
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Agregar Miembros'),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: busquedaController,
+                      decoration: const InputDecoration(
+                        hintText: 'Buscar por username',
+                        prefixIcon: Icon(Icons.search),
+                      ),
+                      onChanged: (value) {
+                        setState(() {
+                          filtro = value.toLowerCase();
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                    Expanded(
+                      child: StreamBuilder<QuerySnapshot>(
+                        stream: _firestore.collection('usuarios').snapshots(),
+                        builder: (context, snapshot) {
+                          if (!snapshot.hasData) {
+                            return const Center(
+                                child: CircularProgressIndicator());
+                          }
+
+                          // Filtrar usuarios que ya no están en el grupo
+                          List<DocumentSnapshot> usuariosFiltrados =
+                              snapshot.data!.docs.where((doc) {
+                            Map<String, dynamic> userData =
+                                doc.data() as Map<String, dynamic>;
+                            String username = userData['username'] ?? '';
+                            String userId = doc.id;
+
+                            // Filtrar por búsqueda y excluir usuarios ya en el grupo
+                            bool noEstaEnGrupo =
+                                !(_grupoData?['miembros'] ?? [])
+                                    .contains(userId);
+                            bool coincideBusqueda = filtro.isEmpty ||
+                                username.toLowerCase().contains(filtro);
+
+                            return noEstaEnGrupo && coincideBusqueda;
+                          }).toList();
+
+                          return ListView.builder(
+                            itemCount: usuariosFiltrados.length,
+                            itemBuilder: (context, index) {
+                              DocumentSnapshot usuario =
+                                  usuariosFiltrados[index];
+                              Map<String, dynamic> userData =
+                                  usuario.data() as Map<String, dynamic>;
+                              String username = userData['username'] ?? '';
+                              String nombreCompleto =
+                                  '${userData['nombres']} ${userData['apellidos']}';
+                              String userId = usuario.id;
+
+                              return CheckboxListTile(
+                                title: Text(username),
+                                subtitle: Text(nombreCompleto),
+                                value: usuariosSeleccionados.contains(userId),
+                                onChanged: (bool? selected) {
+                                  setState(() {
+                                    if (selected == true) {
+                                      usuariosSeleccionados.add(userId);
+                                    } else {
+                                      usuariosSeleccionados.remove(userId);
+                                    }
+                                  });
+                                },
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Cancelar'),
+                ),
+                ElevatedButton(
+                  onPressed: usuariosSeleccionados.isNotEmpty
+                      ? () => _agregarMiembrosAlGrupo(usuariosSeleccionados)
+                      : null,
+                  child: Text('Agregar (${usuariosSeleccionados.length})'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _agregarMiembrosAlGrupo(List<String> usuariosIds) async {
+    if (_grupoData?['adminUid'] != _currentUserUid) return;
+
+    try {
+      // Obtener referencias a los documentos de los usuarios
+      List<DocumentSnapshot> usuarios = await Future.wait(usuariosIds
+          .map((id) => _firestore.collection('usuarios').doc(id).get()));
+
+      // Extraer usernames
+      List usernames = usuarios.map((usuario) {
+        Map<String, dynamic> userData = usuario.data() as Map<String, dynamic>;
+        return userData['username'];
+      }).toList();
+
+      // Actualizar el grupo en Firestore
+      await _firestore.collection('grupos').doc(widget.grupoId).update({
+        'miembros': FieldValue.arrayUnion(usuariosIds),
+        'miembrosNombres': FieldValue.arrayUnion(usernames),
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${usuariosIds.length} miembros agregados')),
+      );
+
+      Navigator.of(context).pop();
+    } catch (e) {
+      print('Error al agregar miembros: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error al agregar miembros')),
+      );
+    }
   }
 
   Future<void> _salirDelGrupo() async {
