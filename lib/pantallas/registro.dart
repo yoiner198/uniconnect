@@ -1,10 +1,10 @@
 // pantallas/registro.dart
-// ignore_for_file: library_private_types_in_public_api
+// ignore_for_file: library_private_types_in_public_api, use_build_context_synchronously
 
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:geolocator/geolocator.dart';
+import 'package:uniconnect/pantallas/pantalla_principal.dart';
 
 class RegistroPage extends StatefulWidget {
   const RegistroPage({super.key});
@@ -77,73 +77,20 @@ class _RegistroPageState extends State<RegistroPage> {
   String? seleccionarFacultad;
   String? seleccionarCarrera;
 
-  Future<void> _solicitarPermisoUbicacion() async {
-    // Mostrar un diálogo personalizado para solicitar permiso
-    bool? permitir = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Uniconnect quiere conocer tu ubicación'),
-          content:
-              const Text('¿Permites que la aplicación acceda a tu ubicación?'),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false), // Denegar
-              child: const Text('Denegar'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true), // Permitir
-              child: const Text('Permitir'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (permitir == true) {
-      // Si el usuario permite, solicita el permiso
-      LocationPermission permiso = await Geolocator.checkPermission();
-      if (permiso == LocationPermission.denied) {
-        permiso = await Geolocator.requestPermission();
-        if (permiso == LocationPermission.denied) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Permiso de ubicación denegado')),
-          );
-          return;
-        }
-      }
-
-      // Obtener la ubicación actual
-      Position posicion = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.high);
-      print(
-          'Ubicación actual: Latitud: ${posicion.latitude}, Longitud: ${posicion.longitude}');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Permiso de ubicación concedido')),
-      );
-    } else {
-      // Si el usuario deniega, muestra un mensaje
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Permiso de ubicación denegado')),
-      );
-    }
-  }
-
   Future<void> registrarUsuario() async {
-    // Solicitar permiso de ubicación al registrarse
-    await _solicitarPermisoUbicacion();
-
     if (_formKey.currentState!.validate()) {
       try {
+        // Crear el usuario en Firebase Auth
         UserCredential userCredential =
             await _auth.createUserWithEmailAndPassword(
           email: correoInstitucional,
           password: contrasena,
         );
 
-        // Generate username from email
+        // Generar el username a partir del correo
         username = correoInstitucional.split('@')[0];
 
+        // Guardar los datos del usuario en Firestore
         await _firestore
             .collection('usuarios')
             .doc(userCredential.user!.uid)
@@ -156,7 +103,6 @@ class _RegistroPageState extends State<RegistroPage> {
           'facultad': seleccionarFacultad,
         });
 
-        // Show a dialog with the username
         await showDialog(
           context: context,
           builder: (BuildContext context) {
@@ -174,10 +120,13 @@ class _RegistroPageState extends State<RegistroPage> {
             );
           },
         );
-
-        // Optional: You can also keep the success SnackBar
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Registro exitoso')),
+        );
+        // Redirigir directamente a la Pantalla Principal
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const PantallaPrincipal()),
         );
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(

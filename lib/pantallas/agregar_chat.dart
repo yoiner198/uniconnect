@@ -120,21 +120,6 @@ class _AgregarChatPageState extends State<AgregarChatPage> {
     }
   }
 
-  // Función para enviar una notificación de solicitud de amistad
-  Future<void> enviarNotificacion(Map<String, dynamic> usuario) async {
-    try {
-      await _firestore.collection('notificaciones').add({
-        'de': _currentUserUsername,
-        'para': usuario['username'],
-        'mensaje': 'te ha enviado una solicitud de amistad',
-        'estado': 'pendiente', // Estado de la notificación
-        'timestamp': FieldValue.serverTimestamp(),
-      });
-    } catch (e) {
-      print('Error al enviar notificación: $e');
-    }
-  }
-
   // Agregar un nuevo contacto
   Future<void> agregarContacto(Map<String, dynamic> usuario) async {
     try {
@@ -145,9 +130,6 @@ class _AgregarChatPageState extends State<AgregarChatPage> {
           .collection('contactos')
           .doc(usuario['username'])
           .set(usuario);
-
-      // Enviar notificación al usuario agregado
-      await enviarNotificacion(usuario);
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Contacto agregado exitosamente')),

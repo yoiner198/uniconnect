@@ -6,7 +6,7 @@ import '../widgets/bottom_nav_bar.dart';
 import 'chat.dart';
 
 class PantallaPrincipal extends StatefulWidget {
-  const PantallaPrincipal({Key? key}) : super(key: key);
+  const PantallaPrincipal({super.key});
 
   @override
   _PantallaPrincipalState createState() => _PantallaPrincipalState();
@@ -18,9 +18,8 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final TextEditingController _controladorBusqueda = TextEditingController();
   String _busquedaTexto = '';
-  List<String> _contactosConMensajes = [];
   List<String> _contactosFiltrados = [];
-  List<Map<String, dynamic>> _notificaciones = [];
+  Map<String, String> _contactosNombres = {};
 
   static const List<Widget> _widgetOptions = <Widget>[
     Text('Grupos'),
@@ -39,28 +38,6 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
   void initState() {
     super.initState();
     _obtenerContactosConMensajes();
-    _obtenerNotificaciones();
-  }
-
-  Future<void> _obtenerNotificaciones() async {
-    try {
-      User? user = _auth.currentUser;
-      if (user != null) {
-        QuerySnapshot notificacionesSnapshot = await _firestore
-            .collection('notificaciones')
-            .where('para', isEqualTo: user.uid)
-            .get();
-
-        setState(() {
-          _notificaciones = notificacionesSnapshot.docs
-              .map((doc) =>
-                  {...doc.data() as Map<String, dynamic>, 'id': doc.id})
-              .toList();
-        });
-      }
-    } catch (e) {
-      print('Error al obtener notificaciones: $e');
-    }
   }
 
   @override
@@ -70,18 +47,9 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
         title: _cuadroBusqueda(),
         centerTitle: true,
         backgroundColor: const Color.fromARGB(255, 42, 143, 62),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications),
-            onPressed: () {
-              _mostrarNotificaciones();
-            },
-          ),
-        ],
       ),
       body: Column(
         children: [
-          _mostrarNotificacionesWidget(),
           Expanded(
             child: Center(
               child: _selectedIndex == 0
@@ -128,18 +96,20 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
       itemCount: _contactosFiltrados.length,
       itemBuilder: (context, index) {
         String contactUsername = _contactosFiltrados[index];
+        String contactName =
+            _contactosNombres[contactUsername] ?? contactUsername;
+
         return ListTile(
           leading: CircleAvatar(
             backgroundColor: const Color.fromARGB(255, 113, 135, 117),
             child: Text(
-              contactUsername.isNotEmpty
-                  ? contactUsername[0].toUpperCase()
-                  : '?',
+              contactName.isNotEmpty ? contactName[0].toUpperCase() : '?',
               style: const TextStyle(
                   color: Colors.white, fontWeight: FontWeight.bold),
             ),
           ),
-          title: Text(contactUsername),
+          title: Text(contactName), // Muestra el nombre en la lista
+          subtitle: Text(contactUsername), // Muestra el username como detalle
           onTap: () => abrirChat(contactUsername),
         );
       },
@@ -164,7 +134,6 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
     );
 
     if (result == true) {
-      _obtenerNotificaciones();
       setState(() {});
     }
   }
@@ -174,28 +143,44 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
       User? user = _auth.currentUser;
       if (user != null) {
         String uid = user.uid;
+
+        // Obtén el documento del usuario actual
         DocumentSnapshot userDoc =
             await _firestore.collection('usuarios').doc(uid).get();
         String currentUsername = userDoc['username'];
 
+        // Consulta todos los chats donde participa el usuario actual
         QuerySnapshot chatsSnapshot = await _firestore
             .collection('chats')
             .where('participants', arrayContains: currentUsername)
             .get();
 
-        Set<String> contactosTemp = {};
-
+        // Extrae los usernames de los contactos
+        Set<String> contactosUsernames = {};
         for (var chatDoc in chatsSnapshot.docs) {
           List<String> participants =
               List<String>.from(chatDoc['participants']);
-          String contactUsername = participants
-              .firstWhere((username) => username != currentUsername);
-          contactosTemp.add(contactUsername);
+          contactosUsernames.addAll(
+              participants.where((username) => username != currentUsername));
+        }
+
+        if (contactosUsernames.isEmpty) return;
+
+        // Consulta de forma masiva la colección "usuarios" para los contactos
+        QuerySnapshot usuariosSnapshot = await _firestore
+            .collection('usuarios')
+            .where('username', whereIn: contactosUsernames.toList())
+            .get();
+
+        // Construye el mapa de usernames a nombres
+        Map<String, String> contactosTemp = {};
+        for (var userDoc in usuariosSnapshot.docs) {
+          contactosTemp[userDoc['username']] = userDoc['nombres'];
         }
 
         setState(() {
-          _contactosConMensajes = contactosTemp.toList();
-          _contactosFiltrados = _contactosConMensajes;
+          _contactosFiltrados = contactosTemp.keys.toList();
+          _contactosNombres = contactosTemp;
         });
       }
     } catch (e) {
@@ -206,80 +191,11 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
   void _filtrarContactos(String texto) {
     setState(() {
       _busquedaTexto = texto;
-      _contactosFiltrados = _contactosConMensajes
-          .where((contacto) =>
-              contacto.toLowerCase().contains(_busquedaTexto.toLowerCase()))
+      _contactosFiltrados = _contactosNombres.entries
+          .where((entry) =>
+              entry.value.toLowerCase().contains(_busquedaTexto.toLowerCase()))
+          .map((entry) => entry.key)
           .toList();
     });
-  }
-
-  void _mostrarNotificaciones() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Solicitudes de Amistad'),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: _mostrarNotificacionesWidget(),
-          ),
-          actions: [
-            TextButton(
-              child: const Text('Cerrar'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _mostrarNotificacionesWidget() {
-    if (_notificaciones.isEmpty) {
-      return const Text('No tienes notificaciones');
-    }
-    return Column(
-      children: _notificaciones.map((notificacion) {
-        return ListTile(
-          title: Text(
-              '${notificacion['de']} te ha enviado una solicitud de amistad'),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.check),
-                onPressed: () async {
-                  await _aceptarSolicitud(notificacion);
-                  Navigator.of(context).pop();
-                },
-              ),
-              IconButton(
-                icon: const Icon(Icons.delete),
-                onPressed: () async {
-                  await _eliminarSolicitud(notificacion);
-                  Navigator.of(context).pop();
-                },
-              ),
-            ],
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  Future<void> _aceptarSolicitud(Map<String, dynamic> notificacion) async {
-    // Lógica para agregar el contacto y eliminar la notificación
-    // Aquí puedes usar la función agregarContacto que ya tienes
-    // y luego eliminar la notificación de Firestore
-  }
-
-  Future<void> _eliminarSolicitud(Map<String, dynamic> notificacion) async {
-    await _firestore
-        .collection('notificaciones')
-        .doc(notificacion['id'])
-        .delete();
-    _obtenerNotificaciones();
   }
 }

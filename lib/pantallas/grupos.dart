@@ -6,7 +6,7 @@ import 'agregar_grupo.dart';
 import 'chat_grupo.dart';
 
 class GruposPage extends StatefulWidget {
-  const GruposPage({Key? key}) : super(key: key);
+  const GruposPage({super.key});
 
   @override
   _GruposPageState createState() => _GruposPageState();
