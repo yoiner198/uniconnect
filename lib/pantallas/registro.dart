@@ -141,6 +141,7 @@ class _RegistroPageState extends State<RegistroPage> {
           password: contrasena,
         );
 
+        // Generate username from email
         username = correoInstitucional.split('@')[0];
 
         await _firestore
@@ -155,6 +156,26 @@ class _RegistroPageState extends State<RegistroPage> {
           'facultad': seleccionarFacultad,
         });
 
+        // Show a dialog with the username
+        await showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('Registro Exitoso'),
+              content: Text('Tu usuario es: $username'),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text('Aceptar'),
+                ),
+              ],
+            );
+          },
+        );
+
+        // Optional: You can also keep the success SnackBar
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Registro exitoso')),
         );

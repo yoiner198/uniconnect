@@ -87,8 +87,18 @@ class _GruposPageState extends State<GruposPage> {
         itemCount: gruposFiltrados.length,
         itemBuilder: (context, index) {
           var grupo = gruposFiltrados[index];
+          String grupoNombre = grupo['nombre'];
           return ListTile(
-            title: Text(grupo['nombre']),
+            leading: CircleAvatar(
+              // ignore: sort_child_properties_last
+              child: Text(
+                grupoNombre.isNotEmpty ? grupoNombre[0].toUpperCase() : '',
+                style: const TextStyle(color: Colors.white),
+              ),
+              backgroundColor: const Color.fromARGB(
+                  255, 84, 104, 97), // Cambia el color según tus preferencias
+            ),
+            title: Text(grupoNombre),
             subtitle: Text('Admin: ${grupo['admin']}'),
             onTap: () {
               Navigator.push(

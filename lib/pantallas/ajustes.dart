@@ -14,12 +14,17 @@ class AjustesPage extends StatefulWidget {
 class _AjustesPageState extends State<AjustesPage> {
   final TextEditingController _nombresController = TextEditingController();
   final TextEditingController _apellidosController = TextEditingController();
-  final TextEditingController _telefonoController = TextEditingController();
+  final TextEditingController _carreraController = TextEditingController();
+  final TextEditingController _facultadController = TextEditingController();
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   String? _correoUsuario;
+  String? _nombre;
+  String? _apellido;
+  String? _carrera;
+  String? _facultad;
 
   Future<void> _cargarDatosUsuario() async {
     try {
@@ -42,9 +47,17 @@ class _AjustesPageState extends State<AjustesPage> {
           Map<String, dynamic> datos =
               usuarioSnapshot.data() as Map<String, dynamic>;
 
-          _nombresController.text = datos['nombres'] ?? '';
-          _apellidosController.text = datos['apellidos'] ?? '';
-          _telefonoController.text = datos['telefono'] ?? '';
+          setState(() {
+            _nombre = datos['nombres'];
+            _apellido = datos['apellidos'];
+            _carrera = datos['carrera'];
+            _facultad = datos['facultad'];
+          });
+
+          _nombresController.text = _nombre ?? '';
+          _apellidosController.text = _apellido ?? '';
+          _carreraController.text = _carrera ?? '';
+          _facultadController.text = _facultad ?? '';
         }
       }
     } catch (e) {
@@ -193,10 +206,22 @@ class _AjustesPageState extends State<AjustesPage> {
             TextFormField(
               controller: _nombresController,
               decoration: const InputDecoration(labelText: 'Nombres'),
+              readOnly: true,
             ),
             TextFormField(
               controller: _apellidosController,
               decoration: const InputDecoration(labelText: 'Apellidos'),
+              readOnly: true,
+            ),
+            TextFormField(
+              controller: _carreraController,
+              decoration: const InputDecoration(labelText: 'Carrera'),
+              readOnly: true,
+            ),
+            TextFormField(
+              controller: _facultadController,
+              decoration: const InputDecoration(labelText: 'Facultad'),
+              readOnly: true,
             ),
             const SizedBox(height: 20),
             Row(
