@@ -59,11 +59,22 @@ class _ActividadesPageState extends State<ActividadesPage> {
                               : TextDecoration.none,
                         ),
                       ),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.edit, color: Colors.blue),
-                        onPressed: () {
-                          // Implementar funcionalidad de edición
-                        },
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.edit, color: Colors.blue),
+                            onPressed: () {
+                              _editarActividad(context, index);
+                            },
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete, color: Colors.red),
+                            onPressed: () {
+                              _eliminarActividad(index);
+                            },
+                          ),
+                        ],
                       ),
                       onTap: () {
                         setState(() {
@@ -80,7 +91,6 @@ class _ActividadesPageState extends State<ActividadesPage> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          // Implementar funcionalidad para agregar actividades
           _agregarActividad(context);
         },
         backgroundColor: const Color.fromARGB(255, 42, 143, 62),
@@ -125,6 +135,71 @@ class _ActividadesPageState extends State<ActividadesPage> {
                 Navigator.of(context).pop();
               },
               child: const Text('Agregar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Función para editar una actividad
+  void _editarActividad(BuildContext context, int index) {
+    final TextEditingController _controller =
+        TextEditingController(text: _actividades[index]['titulo']);
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Editar Actividad'),
+          content: TextField(
+            controller: _controller,
+            decoration: const InputDecoration(hintText: 'Nuevo título de la actividad'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  _actividades[index]['titulo'] = _controller.text;
+                });
+                Navigator.of(context).pop();
+              },
+              child: const Text('Guardar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Función para eliminar una actividad
+  void _eliminarActividad(int index) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Eliminar Actividad'),
+          content: const Text('¿Estás seguro de que deseas eliminar esta actividad?'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  _actividades.removeAt(index);
+                });
+                Navigator.of(context).pop();
+              },
+              child: const Text('Eliminar'),
             ),
           ],
         );
