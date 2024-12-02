@@ -1,42 +1,17 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-class MenuOpcionesGrupo extends StatefulWidget {
-  final String grupoId;
-  final String currentUserUid;
-  final String currentUserUsername;
+class GrupoOpciones {
+  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  const MenuOpcionesGrupo({
-    super.key,
-    required this.grupoId,
-    required this.currentUserUid,
-    required this.currentUserUsername,
-    Map<String, dynamic>? grupoData,
-  });
-
-  @override
-  State<MenuOpcionesGrupo> createState() => _MenuOpcionesGrupoState();
-}
-
-class _MenuOpcionesGrupoState extends State<MenuOpcionesGrupo> {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  Map<String, dynamic>? _grupoData;
-
-  @override
-  void initState() {
-    super.initState();
-    _cargarDatosGrupo();
-  }
-
-  Future<void> _cargarDatosGrupo() async {
-    DocumentSnapshot grupoSnapshot =
-        await _firestore.collection('grupos').doc(widget.grupoId).get();
-    setState(() {
-      _grupoData = grupoSnapshot.data() as Map<String, dynamic>;
-    });
-  }
-
-  void _mostrarOpcionesGrupo() {
+  static void mostrarOpcionesGrupo(
+      BuildContext context,
+      String grupoId,
+      Map<String, dynamic>? grupoData,
+      String? currentUserUid,
+      String? currentUserUsername) {
     showModalBottomSheet(
       context: context,
       builder: (context) {
@@ -47,43 +22,45 @@ class _MenuOpcionesGrupoState extends State<MenuOpcionesGrupo> {
               leading: const Icon(Icons.exit_to_app),
               title: const Text('Salir del grupo'),
               onTap: () {
-                _salirDelGrupo();
+                _salirDelGrupo(
+                    context, grupoId, currentUserUid, currentUserUsername);
                 Navigator.of(context).pop();
               },
             ),
-            if (_grupoData?['adminUid'] == widget.currentUserUid)
+            if (grupoData?['adminUid'] == currentUserUid)
               ListTile(
                 leading: const Icon(Icons.person_add),
                 title: const Text('Agregar miembros'),
                 onTap: () {
                   Navigator.of(context).pop();
-                  _mostrarAgregarMiembros();
+                  _mostrarAgregarMiembros(context, grupoId, grupoData);
                 },
               ),
-            if (_grupoData?['miembrosNombres'] != null)
+            if (grupoData?['miembrosNombres'] != null)
               ListTile(
                 leading: const Icon(Icons.group),
                 title: const Text('Ver miembros'),
                 onTap: () {
                   Navigator.of(context).pop();
-                  _mostrarMiembros();
+                  _mostrarMiembros(context, grupoData);
                 },
               ),
-            if (_grupoData?['adminUid'] == widget.currentUserUid)
+            if (grupoData?['adminUid'] == currentUserUid)
               ListTile(
                 leading: const Icon(Icons.settings),
                 title: const Text('Cambiar nombre del grupo'),
                 onTap: () {
                   Navigator.of(context).pop();
-                  _cambiarNombreGrupo();
+                  _cambiarNombreGrupo(
+                      context, grupoId, grupoData, currentUserUid);
                 },
               ),
-            if (_grupoData?['adminUid'] == widget.currentUserUid)
+            if (grupoData?['adminUid'] == currentUserUid)
               ListTile(
                 leading: const Icon(Icons.delete),
                 title: const Text('Eliminar grupo'),
                 onTap: () {
-                  _eliminarGrupo();
+                  _eliminarGrupo(context, grupoId);
                   Navigator.of(context).pop();
                 },
               ),
@@ -93,8 +70,9 @@ class _MenuOpcionesGrupoState extends State<MenuOpcionesGrupo> {
     );
   }
 
-  Future<void> _mostrarMiembros() async {
-    if (_grupoData?['miembrosNombres'] == null) return;
+  static Future<void> _mostrarMiembros(
+      BuildContext context, Map<String, dynamic>? grupoData) async {
+    if (grupoData?['miembrosNombres'] == null) return;
 
     showDialog(
       context: context,
@@ -105,7 +83,7 @@ class _MenuOpcionesGrupoState extends State<MenuOpcionesGrupo> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              for (String miembro in _grupoData!['miembrosNombres'])
+              for (String miembro in grupoData!['miembrosNombres'])
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 4.0),
                   child: Text(miembro),
@@ -125,14 +103,15 @@ class _MenuOpcionesGrupoState extends State<MenuOpcionesGrupo> {
     );
   }
 
-  Future<void> _mostrarAgregarMiembros() async {
+  static Future<void> _mostrarAgregarMiembros(BuildContext context,
+      String grupoId, Map<String, dynamic>? grupoData) async {
     List<String> usuariosSeleccionados = [];
     TextEditingController busquedaController = TextEditingController();
     String filtro = '';
 
     showDialog(
       context: context,
-      builder: (BuildContext context) {
+      builder: (context) {
         return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(
@@ -172,8 +151,8 @@ class _MenuOpcionesGrupoState extends State<MenuOpcionesGrupo> {
                             String userId = doc.id;
 
                             bool noEstaEnGrupo =
-                                !(_grupoData?['miembros'] ?? [])
-                                    .contains(userId);
+                                !((grupoData?['miembros'] ?? [])
+                                    .contains(userId));
                             bool coincideBusqueda = filtro.isEmpty ||
                                 username.toLowerCase().contains(filtro);
 
@@ -221,7 +200,8 @@ class _MenuOpcionesGrupoState extends State<MenuOpcionesGrupo> {
                 ),
                 ElevatedButton(
                   onPressed: usuariosSeleccionados.isNotEmpty
-                      ? () => _agregarMiembrosAlGrupo(usuariosSeleccionados)
+                      ? () => _agregarMiembrosAlGrupo(
+                          context, grupoId, usuariosSeleccionados)
                       : null,
                   child: Text('Agregar (${usuariosSeleccionados.length})'),
                 ),
@@ -233,17 +213,21 @@ class _MenuOpcionesGrupoState extends State<MenuOpcionesGrupo> {
     );
   }
 
-  Future<void> _agregarMiembrosAlGrupo(List<String> usuariosIds) async {
+  static Future<void> _agregarMiembrosAlGrupo(
+      BuildContext context, String grupoId, List<String> usuariosIds) async {
     try {
+      // Obtener referencias a los documentos de los usuarios
       List<DocumentSnapshot> usuarios = await Future.wait(usuariosIds
           .map((id) => _firestore.collection('usuarios').doc(id).get()));
 
+      // Extraer usernames
       List usernames = usuarios.map((usuario) {
         Map<String, dynamic> userData = usuario.data() as Map<String, dynamic>;
         return userData['username'];
       }).toList();
 
-      await _firestore.collection('grupos').doc(widget.grupoId).update({
+      // Actualizar el grupo en Firestore
+      await _firestore.collection('grupos').doc(grupoId).update({
         'miembros': FieldValue.arrayUnion(usuariosIds),
         'miembrosNombres': FieldValue.arrayUnion(usernames),
       });
@@ -261,18 +245,25 @@ class _MenuOpcionesGrupoState extends State<MenuOpcionesGrupo> {
     }
   }
 
-  Future<void> _salirDelGrupo() async {
+  static Future<void> _salirDelGrupo(BuildContext context, String grupoId,
+      String? currentUserUid, String? currentUserUsername) async {
+    if (currentUserUid == null) return;
+
     try {
-      await _firestore.collection('grupos').doc(widget.grupoId).update({
-        'miembros': FieldValue.arrayRemove([widget.currentUserUid]),
-        'miembrosNombres': FieldValue.arrayRemove([widget.currentUserUsername]),
+      DocumentReference grupoRef = _firestore.collection('grupos').doc(grupoId);
+
+      // Eliminar al usuario de la lista de miembros
+      await grupoRef.update({
+        'miembros': FieldValue.arrayRemove([currentUserUid]),
+        'miembrosNombres': FieldValue.arrayRemove([currentUserUsername]),
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Has salido del grupo')),
       );
 
-      Navigator.of(context).pop('salir'); // Devuelve el resultado al padre
+      // Navegar de vuelta a la pantalla principal
+      Navigator.of(context).pop();
     } catch (e) {
       print('Error al salir del grupo: $e');
       ScaffoldMessenger.of(context).showSnackBar(
@@ -281,16 +272,17 @@ class _MenuOpcionesGrupoState extends State<MenuOpcionesGrupo> {
     }
   }
 
-  Future<void> _cambiarNombreGrupo() async {
-    TextEditingController _nuevoNombreController = TextEditingController();
+  static Future<void> _cambiarNombreGrupo(BuildContext context, String grupoId,
+      Map<String, dynamic>? grupoData, String? currentUserUid) {
+    final TextEditingController nuevoNombreController = TextEditingController();
 
-    showDialog(
+    return showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
           title: const Text('Cambiar nombre del grupo'),
           content: TextField(
-            controller: _nuevoNombreController,
+            controller: nuevoNombreController,
             decoration: const InputDecoration(
               hintText: 'Nuevo nombre del grupo',
             ),
@@ -304,8 +296,13 @@ class _MenuOpcionesGrupoState extends State<MenuOpcionesGrupo> {
             ),
             ElevatedButton(
               onPressed: () {
+                _actualizarNombreGrupo(
+                    context,
+                    grupoId,
+                    nuevoNombreController.text.trim(),
+                    grupoData,
+                    currentUserUid);
                 Navigator.of(context).pop();
-                _actualizarNombreGrupo(_nuevoNombreController.text.trim());
               },
               child: const Text('Guardar'),
             ),
@@ -315,34 +312,41 @@ class _MenuOpcionesGrupoState extends State<MenuOpcionesGrupo> {
     );
   }
 
-  Future<void> _actualizarNombreGrupo(String nuevoNombre) async {
+  static Future<void> _actualizarNombreGrupo(
+      BuildContext context,
+      String grupoId,
+      String nuevoNombre,
+      Map<String, dynamic>? grupoData,
+      String? currentUserUid) async {
+    if (nuevoNombre.isEmpty || grupoData?['adminUid'] != currentUserUid) return;
+
     try {
-      await _firestore.collection('grupos').doc(widget.grupoId).update({
+      await _firestore.collection('grupos').doc(grupoId).update({
         'nombre': nuevoNombre,
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Nombre del grupo actualizado')),
       );
-
-      Navigator.of(context)
-          .pop(nuevoNombre); // Devuelve el nuevo nombre al padre
     } catch (e) {
-      print('Error al cambiar el nombre del grupo: $e');
+      print('Error al actualizar el nombre del grupo: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error al actualizar el nombre')),
+        const SnackBar(
+            content: Text('Error al actualizar el nombre del grupo')),
       );
     }
   }
 
-  Future<void> _eliminarGrupo() async {
+  static Future<void> _eliminarGrupo(
+      BuildContext context, String grupoId) async {
     try {
-      await _firestore.collection('grupos').doc(widget.grupoId).delete();
+      await _firestore.collection('grupos').doc(grupoId).delete();
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Grupo eliminado')),
       );
 
+      // Navegar de vuelta a la pantalla principal
       Navigator.of(context).pop();
     } catch (e) {
       print('Error al eliminar el grupo: $e');
@@ -350,38 +354,5 @@ class _MenuOpcionesGrupoState extends State<MenuOpcionesGrupo> {
         const SnackBar(content: Text('Error al eliminar el grupo')),
       );
     }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Opciones del grupo'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.more_vert),
-            onPressed: _mostrarOpcionesGrupo,
-          ),
-        ],
-      ),
-      body: _grupoData == null
-          ? const Center(child: CircularProgressIndicator())
-          : Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    _grupoData?['nombre'] ?? 'Grupo',
-                    style: const TextStyle(fontSize: 24),
-                  ),
-                  const SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: _mostrarOpcionesGrupo,
-                    child: const Text('Abrir menú de opciones'),
-                  ),
-                ],
-              ),
-            ),
-    );
   }
 }
